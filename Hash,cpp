@@ -1,0 +1,181 @@
+#include <iostream>
+#include <string>
+#include <vector>
+
+class HashTable {
+private: 
+    struct Item {
+      std::string key;
+      std::string value;
+      bool isDeleted;
+    };
+
+    std::vector<Item> table;
+    int tableSize;
+    int numElements;
+    const double loadFactorThresold = 0.7;
+    const int primeBase = 31;
+
+    int nextPrime(int n) {
+        while (true) {
+            bool isPrime = true;
+            for (int i = 2; i * i <= n; i++) {
+                if (n % i == 0) {
+                    isPrime = false;
+                    break;
+                }
+            }
+            if (isPrime) return n;
+            n++;
+        }
+    }
+
+    int primaryHash(const std::string& key) {
+        long long hash = 0;
+        long long power = 1;
+        for (char c : key) {
+            hash = (hash + (c * power)) % tableSize;
+            power = (power * primeBase) % tableSize;
+        }
+        return hash % tableSize;
+    }
+
+    int secondaryHash(const std::string& key) {
+        int hash = 0;
+        for (char c : key) {
+            hash = (hash * primeBase + c) % tableSize;
+        }
+        return (hash % (tableSize / 2)) * 2 + 1;
+    }
+
+    void resizeTable() {
+        int newSize = nextPrime(tableSize * 2);
+        std::vector<Item> oldTable = table;
+        tableSize = newSize;
+        table.clear();
+        table.resize(tableSize, {"", "", false});
+        numElements = 0;
+
+        for (const auto& item : oldTable) {
+            if (!item.key.empty() && !item.isDeleted) {
+                insert(item.key, item.value);
+            }
+        }
+    }
+
+public:
+    HashTable(int size) : tableSize(size), numElements(0) {
+        table.resize(tableSize, {"", "", false});
+    }
+
+    void insert(const std::string& key, const std::string& value) {
+        if ((double)numElements / tableSize > loadFactorThresold) {
+            resizeTable();
+        }
+
+        int index = primaryHash(key);
+        int stepSize = secondaryHash(key);
+        int i = 0;
+
+        while (!table[index].key.empty() && !table[index].isDeleted) {
+            index = (index + stepSize) % tableSize;
+            i++;
+        }
+
+        table[index] = {key, value, false};
+        numElements++;
+    }
+
+    std::string search(const std::string& key) {
+        int index = primaryHash(key);
+        int stepSize = secondaryHash(key);
+        int i = 0;
+
+        while (!table[index].key.empty() && i < tableSize) {
+            if (table[index].key == key && !table[index].isDeleted) {
+                return table[index].value;
+            }
+            index = (index + stepSize) % tableSize;
+            i++;
+        }
+        return "";
+    }
+
+    std::string remove(const std::string& key) {
+        int index = primaryHash(key);
+        int stepSize = secondaryHash(key);
+        int i = 0;
+
+        while (!table[index].key.empty() && i < tableSize) {
+            if (table[index].key == key && !table[index].isDeleted) {
+                table[index].isDeleted = true;
+                numElements--;
+                return "removed";
+            }
+            index = (index + stepSize) % tableSize;
+            i++;
+        }
+        return "";
+    }
+
+    void printTable() {
+        for (int i = 0; i < tableSize; ++i) {
+            if (!table[i].key.empty() && !table[i].isDeleted) {
+                std::cout << "Index " << i << ": " << table[i].key << " -> " << table[i].value << std::endl;
+            }
+        }
+    }
+};
+
+int main() {
+    HashTable hash(10);
+
+    hash.insert("Paul", "Locha");
+    hash.insert("Kim", "Iced Mocha");
+    hash.insert("Emma", "Strawberry Smoothy");
+    hash.insert("Annie", "Hot Chocolate");
+    hash.insert("Sarah", "Passion Tea");
+    hash.insert("Pepper", "Caramel Mocha");
+    hash.insert("Mike", "Chai Tea");
+    hash.insert("Steve", "Apple Cider");
+    hash.insert("Bill", "Root Beer");
+    hash.insert("Marie", "Skinny Latte");
+    hash.insert("Susan", "Water");
+    hash.insert("Joe", "Green Tea");
+
+    hash.printTable();
+
+    std::string name;
+    while (true) {
+        std::cout << "Enter a name to search (or type 'exit' to quit): ";
+        std::cin >> name;
+        if (name == "exit") {
+            break;
+        }
+        std::string result = hash.search(name);
+        if (!result.empty()) {
+            std::cout << "Favorite drink of " << name << " is: " << result << std::endl;
+        } else {
+            std::cout << name << " is not found in the hash table." << std::endl;
+        }
+    }
+
+    std::string toRemove;
+    while (true) {
+        std::cout << "Enter a name to delete (or type 'exit) to quit: ";
+        std::cin >> toRemove;
+        if (toRemove == "exit") {
+            break;
+        }
+        std::string result = hash.remove(toRemove);
+        if (!result.empty()) {
+            std::cout << toRemove << " was removed from the table" << std::endl;
+        } else {
+            std::cout << toRemove << " was either removed or is not in the table. " << std::endl;
+        }
+    }
+
+    
+
+    return 0;
+}
